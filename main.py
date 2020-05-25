@@ -28,6 +28,7 @@ def getAWithSigma(data, sigma2, e):
     """
     x = np.mean(data)
     quantile = st.norm.ppf(1 - (e / 2))
+    print(f't(1-e/2) = {quantile}')
     n = len(data)
     sigma = sigma2 ** 0.5
     sqrN = n ** 0.5
@@ -48,6 +49,7 @@ def getAWithoutSigma(data, e):
     S0 = S2_0 ** 0.5
     sqrN = n ** 0.5
     studentQuantile = st.t.ppf(1 - e / 2, n - 1)
+    print(f'T(1 - e/2, n - 1) = {studentQuantile}')
     return x - (studentQuantile * S0 / sqrN), x + (studentQuantile * S0 / sqrN)
 
 
@@ -62,6 +64,8 @@ def getSigmaWithoutA(data, e):
     n = len(data)
     XiQuantile1 = st.chi2.ppf(1 - e / 2, n - 1)
     XiQuantile2 = st.chi2.ppf(e / 2, n - 1)
+    print(f'Xi(1 - e/2, n - 1) = {XiQuantile1}')
+    print(f'Xi(e / 2, n - 1) = {XiQuantile2}')
     return n * S2 / XiQuantile1, n * S2 / XiQuantile2
 
 
@@ -77,6 +81,8 @@ def getSigmaWithA(data, a, e):
     n = len(data)
     XiQuantile1 = st.chi2.ppf(1 - e / 2, n)
     XiQuantile2 = st.chi2.ppf(e / 2, n)
+    print(f'Xi(1 - e/2, n) = {XiQuantile1}')
+    print(f'Xi(e / 2, n) = {XiQuantile2}')
     return n * S2_1 / XiQuantile1, n * S2_1 / XiQuantile2
 
 
@@ -109,7 +115,9 @@ def fisherCriterion(data1, data2, e):
     m = len(data2)
     S0X = np.var(data1) * n / (n - 1)
     S0Y = np.var(data2) * m / (m - 1)
-    d = S0X / S0Y
+    print(f'S_0(X) = {S0X}')
+    print(f'S_0(Y) = {S0Y}')
+    d = S0X / S0Y if S0X >= S0Y else S0Y / S0X
     f1 = st.f.ppf(e / 2, n - 1, m - 1)
     f2 = st.f.ppf(1 - e / 2, n - 1, m - 1)
     print(f'f(e/2) = {f1}')
@@ -132,6 +140,8 @@ def studentCriterion(data1, data2, e):
     SY = np.var(data2)
     avgX = np.mean(data1)
     avgY = np.mean(data2)
+    print(f'X = {avgX}')
+    print(f'Y = {avgY}')
     numerator = (avgX - avgY) * ((m + n - 2) ** 0.5) * ((n * m) ** 0.5)
     denominator = ((n + m) ** 0.5) * ((n * SX + m * SY) ** 0.5)
     d = numerator / denominator
@@ -158,11 +168,12 @@ def KolmagorovCrit(data, e, distribution):
     :return: True, если верна основная гипотеза (о принадлежности случайной величины распределению), False иначе
     """
     stat, pvalue = st.kstest(data, distribution)
-    print(f"Статистика критерия Колмагорова (d) =  {stat}")
+    d = (len(data) ** 0.5) * stat
+    print(f"Статистика критерия Колмагорова (d) =  {d}")
     print(f'РДУЗ = {pvalue}')
     c = st.kstwobign.ppf(1 - e)
     print(f'c = {c}')
-    return stat < c
+    return d < c
 
 
 def PirsonCrit(data, e):
@@ -197,6 +208,23 @@ def critForUniform(data, e):
     print(f'Критерий Пирсона ' + ('подтверждает' if ptest else 'отвергает') + ' основную гипотезу')
 
 
+def getSupForUniform(data):
+    """
+    Вычисляет супремум между эмперической и теоритической функцией распределения
+    :param data: Выборка из равномерного распределения
+    :return: sup - супремум между эмперической и теоритической функцией распределения, point - точка,
+     в которой достигается супремум
+    """
+    ecdf = ECDF(data)
+    sup = float('-Inf')
+    point = 0
+    for i in range(len(data)):
+        pointSub = math.fabs(ecdf.y[i + 1] - st.uniform.cdf(ecdf.x[i + 1]))
+        if sup < pointSub:
+            sup = pointSub
+            point = ecdf.x[i + 1]
+    return sup, point
+
 def showHistAndECDF(data):
     '''
     Рисует график эмпирической функции распределения и гистограмму
@@ -205,6 +233,9 @@ def showHistAndECDF(data):
     '''
     ecdf = ECDF(data)
     plt.step(ecdf.x, ecdf.y)
+    x = np.linspace(0, 1, 100)
+    y = x
+    plt.plot(x, y)
     plt.show()
     plt.hist(data, bins=math.floor(math.log2(len(data)) + 1))
     plt.show()
@@ -219,6 +250,8 @@ def main():
     uniformData = list(map(float, input().split()))
     critForUniform(uniformData, e)
     showHistAndECDF(uniformData)
+    sup, point = getSupForUniform(uniformData)
+    print(f'Супремум = {sup} в точке ({point})')
 
 
 if __name__ == '__main__':
